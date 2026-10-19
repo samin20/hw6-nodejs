@@ -1,29 +1,43 @@
 pipeline {
-    agent { label 'node-agent' }
-    
-    stages{
-        stage('Code'){
-            steps{
-                git url: 'https://github.com/LondheShubham153/node-todo-cicd.git', branch: 'master' 
+    agent any
+
+    tools {
+        nodejs 'NodeJS-24'
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                checkout scm
             }
         }
-        stage('Build and Test'){
-            steps{
-                sh 'docker build . -t trainwithshubham/node-todo-test:latest'
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm install'
             }
         }
-        stage('Push'){
-            steps{
-                withCredentials([usernamePassword(credentialsId: 'dockerHub', passwordVariable: 'dockerHubPassword', usernameVariable: 'dockerHubUser')]) {
-        	     sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPassword}"
-                 sh 'docker push trainwithshubham/node-todo-test:latest'
-                }
+
+        stage('Test') {
+            steps {
+                sh 'npm test'
             }
         }
-        stage('Deploy'){
-            steps{
-                sh "docker-compose down && docker-compose up -d"
+
+        stage('Build Artifact') {
+            steps {
+                sh 'tar -czf nodejs-app.tar.gz --exclude=node_modules --exclude=.git --exclude=nodejs-app.tar.gz .'
+                archiveArtifacts artifacts: 'nodejs-app.tar.gz', fingerprint: true
             }
+        }
+    }
+
+    post {
+        success {
+            echo 'Build successful!'
+        }
+        failure {
+            echo 'Build failed!'
         }
     }
 }
